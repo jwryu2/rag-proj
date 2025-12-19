@@ -23,7 +23,7 @@ MODELS = {
     "koe5": "nlpai-lab/KoE5",
 }
 
-QDRANT_URL = "http://localhost:6333"
+QDRANT_URL = "http://127.0.0.1:6333"
 COLLECTION_PREFIX = "navernews_dense_"
 
 # Chunking (Retriever 비교에서는 고정)

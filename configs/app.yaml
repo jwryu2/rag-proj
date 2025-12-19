@@ -17,7 +17,7 @@ embedding:
   batch_size: 32
 
 qdrant:
-  url: "http://localhost:6333"
+  url: "http://127.0.0.1:6333"
   collection: "naver_news_ko"
 
 llm:

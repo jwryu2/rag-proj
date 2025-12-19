@@ -31,7 +31,7 @@ CHUNK_CONFIGS = [
 MIN_CHUNK_CHARS = 200
 
 # Qdrant
-QDRANT_URL = "http://localhost:6333"
+QDRANT_URL = "http://127.0.0.1:6333"
 COLLECTION_PREFIX = "navernews_chunksize_"
 
 # Eval

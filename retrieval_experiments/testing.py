@@ -2,7 +2,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import numpy as np
 
-client = QdrantClient(url="http://localhost:6333")
+client = QdrantClient(url="http://127.0.0.1:6333")
 
 client.recreate_collection(
     collection_name="__smoke_test__",
