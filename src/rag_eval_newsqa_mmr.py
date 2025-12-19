@@ -8,7 +8,7 @@ import pandas as pd
 from rag import rag_answer
 
 NEWSQA_PATH = "newsqa.json"
-LIMIT = 200           # 먼저 200, 이후 1000
+LIMIT = 10          # 먼저 200, 이후 1000
 TOP_K = 10
 FETCH_K = 30
 LAMBDAS = [None, 0.70, 0.85, 0.95]
@@ -87,6 +87,16 @@ def eval_setting(ds, rerank, mmr_lambda):
             rerank=rerank,
             mmr_lambda=mmr_lambda if mmr_lambda is not None else 0.85,
         )
+
+        # 🔽 추가: 매 질문마다 출력
+        print("=" * 80)
+        print(f"[{i}/{len(ds)}] QUESTION:")
+        print(ex["question"])
+        print("GOLD ANSWER:")
+        print(ex["answer"])
+        print("PREDICTED ANSWER:")
+        print(ans)
+        print("=" * 80)
         dt = (time.perf_counter() - t0) * 1000.0
         lats.append(dt)
 
