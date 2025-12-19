@@ -12,7 +12,7 @@ chunking:
   max_chars: 20000
 
 embedding:
-  model_name: "intfloat/multilingual-e5-base"
+  model_name: "intfloat/multilingual-e5-large"
   device: "cpu"
   batch_size: 32
 
