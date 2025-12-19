@@ -6,8 +6,8 @@ dataset:
   limit: 0   # 0이면 전부 적재, 테스트면 2000 같은 숫자로
 
 chunking:
-  target_chars: 2000
-  overlap_chars: 200
+  target_chars: 800
+  overlap_chars: 160
   min_chars: 200
   max_chars: 20000
 
@@ -18,7 +18,7 @@ embedding:
 
 qdrant:
   url: "http://127.0.0.1:6333"
-  collection: "naver_news_ko"
+  collection: "navernews_structchunk_e5_large_fixed_800_160"
 
 llm:
   base_url: "http://127.0.0.1:11434"
