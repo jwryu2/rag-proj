@@ -1,0 +1,8 @@
+datasets
+qdrant-client
+sentence-transformers
+torch
+transformers
+gradio
+pyyaml
+tqdm

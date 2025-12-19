@@ -1,0 +1,27 @@
+top_k: 5
+
+dataset:
+  name: "daekeun-ml/naver-news-summarization-ko"
+  split: "train"
+  limit: 0   # 0이면 전부 적재, 테스트면 2000 같은 숫자로
+
+chunking:
+  target_chars: 2000
+  overlap_chars: 200
+  min_chars: 200
+  max_chars: 20000
+
+embedding:
+  model_name: "intfloat/multilingual-e5-base"
+  device: "cpu"
+  batch_size: 32
+
+qdrant:
+  url: "http://localhost:6333"
+  collection: "naver_news_ko"
+
+llm:
+  base_url: "http://localhost:11434/v1"
+  model: "qwen3:1.7b"
+  temperature: 0.2
+  max_tokens: 40960
