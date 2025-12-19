@@ -33,7 +33,7 @@ STRUCT_OVERLAP = 160  # max split시에만 사용
 STRUCT_JOIN_PARAS_UNTIL = 800  # 작은 문단들을 합칠 때 목표 길이
 
 # Qdrant
-QDRANT_URL = "http://localhost:6333"
+QDRANT_URL = "http://127.0.0.1:6333"
 COLLECTION_PREFIX = "navernews_structchunk_"
 
 # Eval
