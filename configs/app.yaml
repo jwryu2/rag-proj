@@ -18,7 +18,7 @@ embedding:
 
 qdrant:
   url: "http://127.0.0.1:6333"
-  collection: "navernews_structchunk_e5_large_fixed_800_160"
+  collection: "navernews_fixed800_for_mmr"
 
 llm:
   base_url: "http://127.0.0.1:11434"
