@@ -21,7 +21,7 @@ qdrant:
   collection: "navernews_fixed800_for_mmr"
 
 llm:
-  base_url: "http://127.0.0.1:11434"
+  base_url: "http://127.0.0.1:11434/v1"
   model: "qwen3:1.7b"
   temperature: 0.2
   max_tokens: 40960
