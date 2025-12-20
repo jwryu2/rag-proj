@@ -3,9 +3,8 @@ import re
 import json
 import time
 import argparse
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from statistics import mean
-from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -24,6 +23,7 @@ def parse_qa_pair(qa_pair):
         return json.loads(qa_pair)
     raise TypeError(type(qa_pair))
 
+
 def load_newsqa(path: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -31,12 +31,14 @@ def load_newsqa(path: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
     for i, ex in enumerate(data):
         try:
             qa = parse_qa_pair(ex["qa_pair"])
-            out.append({
-                "qid": ex.get("qid"),
-                "docid": ex.get("docid"),
-                "question": qa["question"],
-                "answer": qa["answer"],
-            })
+            out.append(
+                {
+                    "qid": ex.get("qid"),
+                    "docid": ex.get("docid"),
+                    "question": qa["question"],
+                    "answer": qa["answer"],
+                }
+            )
         except Exception as e:
             skipped += 1
             if skipped <= 3:
@@ -58,10 +60,29 @@ def norm(s: str) -> str:
     s = s.replace(",", "")
     return s
 
+
+# ✅ NEW: 빈 content 방어 + "한 줄 출력" 강제
+def safe_first_line(s: Optional[str]) -> str:
+    if s is None:
+        return ""
+    s = s.strip()
+    if not s:
+        return ""
+    # 빈 줄 제거 후 첫 줄
+    lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
+    return lines[0] if lines else ""
+
+
 REFUSAL_PATTERNS = [
-    r"\b모르겠", r"\b모른", r"\b알 수 없", r"\b확인할 수 없", r"\b근거(가)? 부족",
-    r"\b제공된 문서(로|로는) 알 수 없", r"\b정보가 없",
+    r"\b모르겠",
+    r"\b모른",
+    r"\b알 수 없",
+    r"\b확인할 수 없",
+    r"\b근거(가)? 부족",
+    r"\b제공된 문서(로|로는) 알 수 없",
+    r"\b정보가 없",
 ]
+
 
 def is_refusal(ans: str) -> int:
     a = norm(ans)
@@ -69,12 +90,14 @@ def is_refusal(ans: str) -> int:
         return 1
     return int(any(re.search(p, a) for p in REFUSAL_PATTERNS))
 
+
 def answer_in_context(gold: str, docs: List[Dict[str, Any]]) -> int:
     g = norm(gold)
     if not g:
         return 0
     ctx = norm("\n".join([d.get("text", "") for d in docs]))
     return int(g in ctx)
+
 
 def jaccard_tokens(a: str, b: str) -> float:
     A = set(norm(a).split())
@@ -122,12 +145,14 @@ def retrieve_docs(
     docs = []
     for p in res.points:
         pl = p.payload or {}
-        docs.append({
-            "docid": pl.get("docid"),
-            "title": pl.get("title", ""),
-            "text": pl.get("text", ""),
-            "score": float(p.score),
-        })
+        docs.append(
+            {
+                "docid": pl.get("docid"),
+                "title": pl.get("title", ""),
+                "text": pl.get("text", ""),
+                "score": float(p.score),
+            }
+        )
     return docs
 
 
@@ -144,11 +169,11 @@ def eval_one(
     top_k: int,
     temperature: float,
     max_tokens: int,
-    n_gen: int,          # stability check: generate n times per question
+    n_gen: int,
     print_each: bool,
 ):
     aics, refusals, out_lens, lat_total = [], [], [], []
-    stability = []  # average pairwise jaccard among n_gen answers (higher => more stable)
+    stability = []
 
     for i, ex in enumerate(ds, 1):
         q = ex["question"]
@@ -156,7 +181,7 @@ def eval_one(
 
         t0 = time.perf_counter()
 
-        # embed query (keep consistent with your retriever setting; e5 style prefix)
+        # embed query (e5-style prefix)
         qvec = embedder.encode(["query: " + q], normalize_embeddings=True)[0].tolist()
 
         # retrieve
@@ -176,16 +201,30 @@ def eval_one(
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            ans = (resp.choices[0].message.content or "").strip().splitlines()[0].strip()
+
+            # ✅ NEW: 빈 응답 방어 + 한 줄 강제
+            raw = ""
+            if resp.choices:
+                raw = resp.choices[0].message.content or ""
+                fr = resp.choices[0].finish_reason
+            else:
+                fr = "no_choices"
+
+            ans = safe_first_line(raw)
+
+            # ✅ NEW: 빈 답변 경고 로그
+            if not ans:
+                print(
+                    f"[WARN] empty answer. finish_reason={fr} temp={temperature} max_tokens={max_tokens} raw_len={len(raw)}"
+                )
+
             answers.append(ans)
 
-        # refusal / output length
-        # use first answer for refusal/len, and n_gen for stability
         ans0 = answers[0]
         refusals.append(is_refusal(ans0))
         out_lens.append(len(ans0))
 
-        # stability: mean pairwise jaccard
+        # stability: mean pairwise jaccard among n_gen answers
         if len(answers) >= 2:
             sims = []
             for a in range(len(answers)):
@@ -208,8 +247,10 @@ def eval_one(
             print("=" * 90)
 
         if i % 20 == 0:
-            print(f"[{i}/{len(ds)}] AIC={mean(aics):.3f} refusal={mean(refusals):.3f} "
-                  f"len={mean(out_lens):.1f} stab={mean(stability):.3f} lat(ms)={mean(lat_total):.1f}")
+            print(
+                f"[{i}/{len(ds)}] AIC={mean(aics):.3f} refusal={mean(refusals):.3f} "
+                f"len={mean(out_lens):.1f} stab={mean(stability):.3f} lat(ms)={mean(lat_total):.1f}"
+            )
 
     return {
         "temperature": temperature,
@@ -232,20 +273,20 @@ def main():
     ap.add_argument("--qdrant_url", default="http://127.0.0.1:6333")
     ap.add_argument("--collection", required=True)
 
-    ap.add_argument("--embed_model", required=True)   # must match collection dim
+    ap.add_argument("--embed_model", required=True)
     ap.add_argument("--device", default="cpu")
 
     ap.add_argument("--newsqa", default="newsqa.json")
     ap.add_argument("--limit_qa", type=int, default=200)
     ap.add_argument("--top_k", type=int, default=10)
 
-    ap.add_argument("--llm_base_url", required=True)  # e.g. http://127.0.0.1:11434/v1
+    ap.add_argument("--llm_base_url", required=True)
     ap.add_argument("--llm_model", required=True)
 
     ap.add_argument("--temps", default="0.0,0.1,0.2,0.4")
     ap.add_argument("--max_tokens_list", default="16,32,64,128")
 
-    ap.add_argument("--n_gen", type=int, default=1)   # set 3 to measure stability more meaningfully
+    ap.add_argument("--n_gen", type=int, default=1)
     ap.add_argument("--print_each", action="store_true")
     args = ap.parse_args()
 
@@ -261,30 +302,29 @@ def main():
     for t in temps:
         for mt in max_tokens_list:
             print(f"\n=== Eval temp={t} max_tokens={mt} ===")
-            results.append(eval_one(
-                ds=ds,
-                client=client,
-                collection=args.collection,
-                embedder=embedder,
-                llm=llm,
-                llm_model=args.llm_model,
-                top_k=args.top_k,
-                temperature=t,
-                max_tokens=mt,
-                n_gen=args.n_gen,
-                print_each=args.print_each,
-            ))
+            results.append(
+                eval_one(
+                    ds=ds,
+                    client=client,
+                    collection=args.collection,
+                    embedder=embedder,
+                    llm=llm,
+                    llm_model=args.llm_model,
+                    top_k=args.top_k,
+                    temperature=t,
+                    max_tokens=mt,
+                    n_gen=args.n_gen,
+                    print_each=args.print_each,
+                )
+            )
 
     df = pd.DataFrame(results)
-
     out = "genparam_eval_noemf1.csv"
     df.to_csv(out, index=False)
 
-    # sort suggestion: maximize AIC, then minimize refusal (or keep moderate), then minimize latency
-    # Depending on your preference you may want refusal not too low (avoid hallucination).
     print("\n=== RESULTS (sorted) ===")
-    show = ["temperature","max_tokens","AIC","refusal_rate","avg_answer_chars","stability","latency_ms_avg","n_gen","top_k"]
-    print(df[show].sort_values(["AIC","stability","latency_ms_avg"], ascending=[False, False, True]))
+    show = ["temperature", "max_tokens", "AIC", "refusal_rate", "avg_answer_chars", "stability", "latency_ms_avg", "n_gen", "top_k"]
+    print(df[show].sort_values(["AIC", "stability", "latency_ms_avg"], ascending=[False, False, True]))
     print("Saved:", out)
 
 
