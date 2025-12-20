@@ -168,7 +168,6 @@ def eval_one(
     llm_model: str,
     top_k: int,
     temperature: float,
-    max_tokens: int,
     n_gen: int,
     print_each: bool,
 ):
@@ -199,7 +198,6 @@ def eval_one(
                 model=llm_model,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens,
             )
 
             # ✅ NEW: 빈 응답 방어 + 한 줄 강제
@@ -215,7 +213,7 @@ def eval_one(
             # ✅ NEW: 빈 답변 경고 로그
             if not ans:
                 print(
-                    f"[WARN] empty answer. finish_reason={fr} temp={temperature} max_tokens={max_tokens} raw_len={len(raw)}"
+                    f"[WARN] empty answer. finish_reason={fr} temp={temperature} raw_len={len(raw)}"
                 )
 
             answers.append(ans)
@@ -239,7 +237,7 @@ def eval_one(
 
         if print_each:
             print("=" * 90)
-            print(f"[{i}/{len(ds)}] temp={temperature} max_tokens={max_tokens} n_gen={n_gen}")
+            print(f"[{i}/{len(ds)}] temp={temperature} n_gen={n_gen}")
             print("Q:", q)
             print("GOLD:", gold)
             print("AIC:", aic, "REFUSAL:", refusals[-1], "LEN:", out_lens[-1], "STAB:", f"{stability[-1]:.3f}")
@@ -254,7 +252,6 @@ def eval_one(
 
     return {
         "temperature": temperature,
-        "max_tokens": max_tokens,
         "AIC": mean(aics),
         "refusal_rate": mean(refusals),
         "avg_answer_chars": mean(out_lens),
@@ -284,7 +281,6 @@ def main():
     ap.add_argument("--llm_model", required=True)
 
     ap.add_argument("--temps", default="0.0,0.1,0.2,0.4")
-    ap.add_argument("--max_tokens_list", default="16,32,64,128")
 
     ap.add_argument("--n_gen", type=int, default=1)
     ap.add_argument("--print_each", action="store_true")
@@ -296,34 +292,31 @@ def main():
     llm = OpenAI(base_url=args.llm_base_url, api_key="dummy")
 
     temps = [float(x) for x in args.temps.split(",") if x.strip()]
-    max_tokens_list = [int(x) for x in args.max_tokens_list.split(",") if x.strip()]
 
     results = []
     for t in temps:
-        for mt in max_tokens_list:
-            print(f"\n=== Eval temp={t} max_tokens={mt} ===")
-            results.append(
-                eval_one(
-                    ds=ds,
-                    client=client,
-                    collection=args.collection,
-                    embedder=embedder,
-                    llm=llm,
-                    llm_model=args.llm_model,
-                    top_k=args.top_k,
-                    temperature=t,
-                    max_tokens=mt,
-                    n_gen=args.n_gen,
-                    print_each=args.print_each,
-                )
+        print(f"\n=== Eval temp={t} ===")
+        results.append(
+            eval_one(
+                ds=ds,
+                client=client,
+                collection=args.collection,
+                embedder=embedder,
+                llm=llm,
+                llm_model=args.llm_model,
+                top_k=args.top_k,
+                temperature=t,
+                n_gen=args.n_gen,
+                print_each=args.print_each,
             )
+        )
 
     df = pd.DataFrame(results)
     out = "genparam_eval_noemf1.csv"
     df.to_csv(out, index=False)
 
     print("\n=== RESULTS (sorted) ===")
-    show = ["temperature", "max_tokens", "AIC", "refusal_rate", "avg_answer_chars", "stability", "latency_ms_avg", "n_gen", "top_k"]
+    show = ["temperature", "AIC", "refusal_rate", "avg_answer_chars", "stability", "latency_ms_avg", "n_gen", "top_k"]
     print(df[show].sort_values(["AIC", "stability", "latency_ms_avg"], ascending=[False, False, True]))
     print("Saved:", out)
 
